@@ -1,0 +1,767 @@
+<!doctype html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>Dashboard Analitik WMS - PDSU</title>
+  
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet" />
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet" />
+
+  <style>
+    :root {
+      --primary-color: #6610f2;
+      --primary-gradient: #8540f5;
+      --bg-color: #f4f7f6;
+    }
+
+    body {
+      background-color: var(--bg-color);
+      font-family: "Segoe UI", Tahoma, sans-serif;
+      padding-top: 75px;
+    }
+
+    /* --- NAVBAR & HEADER --- */
+    .navbar-custom { background-color: #ffffff; box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05); }
+    .navbar-brand-icon { background: var(--primary-color); color: white; padding: 8px 12px; border-radius: 10px; margin-right: 10px; }
+
+    /* --- KOTAK UTAMA (CARDS) --- */
+    .card { border: none; border-radius: 16px; box-shadow: 0 8px 20px rgba(0, 0, 0, 0.04); overflow: hidden; }
+    .card-header-custom { background: linear-gradient(135deg, var(--primary-color), var(--primary-gradient)); color: white; padding: 25px 20px; text-align: center; }
+
+    /* --- NAVIGASI TAB --- */
+    .nav-pills .nav-link { color: #6c757d; border-radius: 10px; padding: 10px 20px; font-weight: 600; transition: 0.3s; margin: 0 5px; }
+    .nav-pills .nav-link.active { background-color: #e0d4fc; color: var(--primary-color); }
+
+    /* --- STAT CARDS --- */
+    .stat-card { border-left: 5px solid; border-radius: 12px; transition: transform 0.2s; }
+    .stat-card:hover { transform: translateY(-5px); }
+    .border-primary-custom { border-color: var(--primary-color) !important; }
+    
+    .form-control, .form-select { border-radius: 8px; padding: 10px 15px; border-color: #e0e0e0; }
+    .form-control:focus, .form-select:focus { border-color: var(--primary-color); box-shadow: 0 0 0 0.25rem rgba(102, 16, 242, 0.25); }
+
+    /* --- WAREHOUSE 2D MAPPING --- */
+    .wh-map-container {
+      background-color: #f8f9fa;
+      border: 2px dashed #cbd5e1;
+      border-radius: 16px;
+      padding: 25px;
+      position: relative;
+    }
+    
+    .wh-block {
+      border-radius: 12px;
+      padding: 15px;
+      text-align: center;
+      transition: all 0.3s ease;
+      border: 2px solid transparent;
+      cursor: pointer;
+      height: 100%;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+    }
+    
+    .wh-block:hover {
+      transform: translateY(-5px);
+      box-shadow: 0 10px 20px rgba(0,0,0,0.1) !important;
+    }
+
+    /* Warna Heatmap Berdasarkan Kepadatan */
+    .wh-empty { background-color: #d1e7dd; border-color: #198754; }      /* Hijau - Tersedia */
+    .wh-partial { background-color: #fff3cd; border-color: #ffc107; }    /* Kuning - Terisi Sebagian */
+    .wh-full { background-color: #f8d7da; border-color: #dc3545; }       /* Merah - Penuh */
+    .wh-dynamic { background-color: #cfe2ff; border-color: #0d6efd; }    /* Biru - Kapasitas Dinamis (Transit/Loading) */
+
+    /* ========================================== */
+    /* CSS KHUSUS CETAK LAPORAN PDF               */
+    /* ========================================== */
+    @media print {
+      body { background-color: white; padding-top: 0; }
+      
+      /* Sembunyikan SEMUA elemen secara default */
+      body * { visibility: hidden; }
+      
+      /* HANYA tampilkan elemen laporan dan anak-anaknya */
+      #area-laporan-audit, #area-laporan-audit * {
+        visibility: visible !important;
+      }
+      
+      /* Tarik area laporan ke pojok kiri atas kertas */
+      #area-laporan-audit {
+        position: absolute !important;
+        left: 0;
+        top: 0;
+        width: 100%;
+      }
+      
+      /* Sembunyikan elemen estetika agar hemat tinta */
+      .no-print, form, .btn, .navbar, .nav-pills { display: none !important; }
+      .card { box-shadow: none !important; border: 1px solid #ddd !important; border-radius: 0 !important; }
+      
+      /* Munculkan Kop Surat */
+      .print-header {
+        display: block !important;
+        text-align: center;
+        margin-bottom: 20px;
+        border-bottom: 2px solid #000;
+        padding-bottom: 10px;
+      }
+
+      * {
+        -webkit-print-color-adjust: exact !important;
+        print-color-adjust: exact !important;
+      }
+    }
+    .print-header { display: none; }
+  </style>
+</head>
+
+<body>
+  <nav class="navbar navbar-custom fixed-top no-print">
+    <div class="container">
+      <div class="d-flex align-items-center">
+        <div class="navbar-brand-icon"><i class="fa-solid fa-chart-pie"></i></div>
+        <div class="user-info">
+          <strong class="d-block text-dark">{{ user.username }}</strong>
+          <span class="text-muted" style="font-size: 0.8rem">
+            <i class="fa-solid fa-shield-halved me-1"></i> {{ user.is_superuser|yesno:"Superadmin,Kepala Gudang" }}
+          </span>
+        </div>
+      </div>
+      <form action="{% url 'logout' %}" method="post" class="m-0">
+        {% csrf_token %}
+        <button type="submit" class="btn btn-outline-danger btn-sm rounded-pill px-3">
+          <i class="fa-solid fa-right-from-bracket me-1"></i>Logout
+        </button>
+      </form>
+    </div>
+  </nav>
+
+  <div class="container mb-5">
+    
+    <!-- Judul Halaman -->
+    <div class="text-center mb-4 mt-2 no-print">
+      <h2 class="fw-bold" style="color: var(--primary-color)"><i class="fa-solid fa-clipboard-list me-2"></i>Dashboard Laporan</h2>
+      <p class="text-muted">Sistem Pelacakan Palet Gudang</p>
+    </div>
+
+    <ul class="nav nav-pills justify-content-center mb-4 border-bottom pb-3 no-print" role="tablist">
+      <li class="nav-item">
+        <button class="nav-link {% if not request.GET %}active{% endif %}" data-bs-toggle="pill" data-bs-target="#tab-summary">
+          <i class="fa-solid fa-chart-line me-1"></i> Ringkasan Data Gudang
+        </button>
+      </li>
+      <li class="nav-item">
+        <button class="nav-link" data-bs-toggle="pill" data-bs-target="#tab-mapping">
+          <i class="fa-solid fa-map-location-dot me-1"></i> Pemetaan Lokasi
+        </button>
+      </li>
+      <li class="nav-item">
+        <button class="nav-link {% if request.GET %}active{% endif %}" data-bs-toggle="pill" data-bs-target="#tab-audit">
+          <i class="fa-solid fa-magnifying-glass me-1"></i> Filter & Pelacakan Data
+        </button>
+      </li>
+    </ul>
+
+    <div class="tab-content">
+      
+      <div class="tab-pane fade {% if not request.GET %}show active{% endif %}" id="tab-summary" role="tabpanel">
+        <div class="row g-4 mb-4">
+          <div class="col-md-4">
+            <a href="?status_aktif=1" class="card stat-card border-primary-custom p-4 bg-white h-100 shadow-sm text-decoration-none">
+              <div class="d-flex justify-content-between align-items-center">
+                <div>
+                  <p class="text-muted small fw-bold mb-1">TOTAL PALET DI GUDANG</p>
+                  <h2 class="fw-bold mb-0" style="color: var(--primary-color)">{{ total_palet_aktif }}</h2>
+                </div>
+                <div class="bg-light p-3 rounded-circle text-primary border shadow-sm"><i class="fa-solid fa-cubes fa-2x"></i></div>
+              </div>
+            </a>
+          </div>
+          <div class="col-md-4">
+            <a href="?dispatch_hari_ini=1" class="card stat-card border-success p-4 bg-white h-100 shadow-sm text-decoration-none">
+              <div class="d-flex justify-content-between align-items-center">
+                <div>
+                  <p class="text-muted small fw-bold mb-1">DIMUAT HARI INI (DISPATCH)</p>
+                  <h2 class="fw-bold text-success mb-0">{{ palet_terkirim_hari_ini }}</h2>
+                </div>
+                <div class="bg-success bg-opacity-10 p-3 rounded-circle text-success border border-success border-opacity-25"><i class="fa-solid fa-truck-ramp-box fa-2x"></i></div>
+              </div>
+            </a>
+          </div>
+          <div class="col-md-4">
+            <a href="?inbound_hari_ini=1" class="card stat-card border-info p-4 bg-white h-100 shadow-sm text-decoration-none">
+              <div class="d-flex justify-content-between align-items-center">
+                <div>
+                  <p class="text-muted small fw-bold mb-1">DIBENTUK HARI INI (INBOUND)</p>
+                  <h2 class="fw-bold text-info mb-0">{{ palet_masuk_hari_ini }}</h2>
+                </div>
+                <div class="bg-info bg-opacity-10 p-3 rounded-circle text-info border border-info border-opacity-25">
+                  <i class="fa-solid fa-boxes-packing fa-2x"></i>
+                </div>
+              </div>
+            </a>
+          </div>
+        </div>
+        
+        <div class="card p-4 border shadow-sm rounded-4 bg-white">
+          <h6 class="fw-bold mb-3 text-secondary"><i class="fa-solid fa-chart-bar me-2" style="color: var(--primary-color)"></i>Distribusi Kepadatan Lokasi</h6>
+          <div style="position: relative; height: 250px; width: 100%;">
+            <canvas id="gudangChart"></canvas>
+          </div>
+        </div>
+      </div>
+
+      <!-- MENU PEMETAAN LOKASI -->
+      <div class="tab-pane fade" id="tab-mapping" role="tabpanel">
+        
+        <div class="d-flex justify-content-between align-items-end mb-3 no-print">
+          <div>
+            <h5 class="fw-bold text-dark mb-1"><i class="fa-solid fa-map-location-dot text-primary me-2"></i>Denah Visual Gudang (Heatmap)</h5>
+            <p class="small text-muted mb-0">Pemetaan status kapasitas blok secara real-time.</p>
+          </div>
+          <div class="d-flex gap-2 small fw-bold text-muted bg-white px-3 py-2 rounded-pill border shadow-sm">
+            <span class="text-success"><i class="fa-solid fa-square me-1"></i>Tersedia</span>
+            <span class="text-warning"><i class="fa-solid fa-square me-1"></i>Hampir Penuh</span>
+            <span class="text-danger"><i class="fa-solid fa-square me-1"></i>Penuh</span>
+          </div>
+        </div>
+
+        <div class="wh-map-container mb-4 shadow-inner">
+          <div class="row g-3">
+            {% for loc in pemetaan_gudang %}
+              <div class="col-6 col-md-4 col-lg-3">
+                
+                {% if loc.kapasitas_maksimal_palet > 0 %}
+                  {% widthratio loc.jumlah_palet loc.kapasitas_maksimal_palet 100 as persentase %}
+                  
+                  <div class="wh-block shadow-sm 
+                        {% if persentase|add:'0' >= 90 %} wh-full
+                        {% elif persentase|add:'0' >= 50 %} wh-partial
+                        {% else %} wh-empty {% endif %}" 
+                        title="Tipe Zona: {{ loc.tipe_zona }}">
+                    
+                    <h6 class="fw-bold mb-1 {% if persentase|add:'0' >= 90 %}text-danger{% elif persentase|add:'0' >= 50 %}text-warning{% else %}text-success{% endif %}" style="filter: brightness(0.6);">
+                      {{ loc.kode_lokasi }}
+                    </h6>
+                    <span class="d-block small fw-bold text-dark mb-2" style="font-size: 0.8rem; line-height: 1.2;">{{ loc.nama_area }}</span>
+                    
+                    <div class="mt-auto">
+                      <div class="d-flex justify-content-center align-items-center mb-1">
+                        <i class="fa-solid {% if persentase|add:'0' >= 90 %}fa-ban text-danger{% else %}fa-box-open text-dark opacity-50{% endif %} me-2"></i>
+                        <h4 class="fw-bold mb-0 {% if persentase|add:'0' >= 90 %}text-danger{% else %}text-dark{% endif %}">
+                          {{ loc.jumlah_palet }}<span style="font-size: 0.8rem;" class="text-muted">/{{ loc.kapasitas_maksimal_palet }}</span>
+                        </h4>
+                      </div>
+                      <div class="progress" style="height: 6px; background-color: rgba(255,255,255,0.6);">
+                        <div class="progress-bar {% if persentase|add:'0' >= 90 %}bg-danger{% elif persentase|add:'0' >= 50 %}bg-warning{% else %}bg-success{% endif %}" 
+                             role="progressbar" style="width: {{ persentase }}%;"></div>
+                      </div>
+                    </div>
+                  </div>
+
+                {% else %}
+                  <div class="wh-block wh-dynamic shadow-sm" title="Tipe Zona: {{ loc.tipe_zona }}">
+                    <h6 class="fw-bold mb-1 text-primary" style="filter: brightness(0.7);">{{ loc.kode_lokasi }}</h6>
+                    <span class="d-block small fw-bold text-dark mb-2" style="font-size: 0.8rem; line-height: 1.2;">{{ loc.nama_area }}</span>
+                    
+                    <div class="mt-auto text-center">
+                      <i class="fa-solid fa-infinity text-primary opacity-50 mb-1 d-block"></i>
+                      <h4 class="fw-bold mb-0 text-primary">{{ loc.jumlah_palet }} <span style="font-size: 0.7rem;" class="text-muted">Palet Aktif</span></h4>
+                    </div>
+                  </div>
+                {% endif %}
+
+              </div>
+            {% endfor %}
+          </div>
+        </div>
+
+        <div class="text-center mb-3">
+          <button class="btn btn-outline-secondary btn-sm rounded-pill px-4" type="button" data-bs-toggle="collapse" data-bs-target="#collapseTabelMapping">
+            <i class="fa-solid fa-table me-2"></i>Lihat Data Tabel Spesifik
+          </button>
+        </div>
+
+        <div class="collapse" id="collapseTabelMapping">
+          <div class="card p-4 shadow-sm bg-white border rounded-4">
+            <h5 class="fw-bold mb-4" style="color: #333"><i class="fa-solid fa-list-check me-2 text-secondary"></i>Tabel Status Kepadatan Lokasi</h5>
+            <div class="table-responsive">
+              <table class="table table-hover align-middle border">
+                <thead class="table-light">
+                  <tr>
+                    <th>Kode Area</th>
+                    <th>Nama Lokasi</th>
+                    <th>Kategori</th>
+                    <th class="text-center">Kapasitas</th>
+                    <th class="text-center">Palet Saat Ini</th>
+                    <th style="width: 30%">Status Kepadatan</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {% for loc in pemetaan_gudang %}
+                  <tr>
+                    <td class="fw-bold">{{ loc.kode_lokasi }}</td>
+                    <td>{{ loc.nama_area }}</td>
+                    <td><span class="badge bg-secondary">{{ loc.tipe_zona }}</span></td>
+                    <td class="text-center">
+                      {% if loc.kapasitas_maksimal_palet == 0 %} ~ {% else %} {{ loc.kapasitas_maksimal_palet }} {% endif %}
+                    </td>
+                    <td class="text-center fw-bold {% if loc.jumlah_palet > 0 %}text-primary{% endif %}">
+                      {{ loc.jumlah_palet }}
+                    </td>
+                    <td>
+                      {% if loc.kapasitas_maksimal_palet > 0 %} 
+                        {% widthratio loc.jumlah_palet loc.kapasitas_maksimal_palet 100 as persentase %}
+                        <div class="progress" style="height: 15px">
+                          <div class="progress-bar {% if persentase|add:'0' >= 90 %}bg-danger{% elif persentase|add:'0' >= 50 %}bg-warning{% else %}bg-success{% endif %}" role="progressbar" style="width: {{ persentase }}%;">{{ persentase }}%</div>
+                        </div>
+                      {% else %}
+                        <small class="text-muted fst-italic">Kapasitas Dinamis</small>
+                      {% endif %}
+                    </td>
+                  </tr>
+                  {% endfor %}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- KOTAK FILTER PENCARIAN -->
+      <div class="tab-pane fade {% if request.GET %} show active{% endif %}" id="tab-audit" role="tabpanel">        
+        <div class="card p-4 mb-4 no-print border-top border-4 shadow-sm" style="border-top-color: var(--primary-color) !important">
+          <h5 class="fw-bold mb-3" style="color: var(--primary-color)"><i class="fa-solid fa-magnifying-glass me-2"></i>Filter Pelacakan</h5>
+          <p class="small text-muted mb-4">Gunakan Filter "ID Barang" untuk melihat Peta Pergerakan Barang.</p>
+          <form method="GET" action="">
+            <div class="row g-3">
+              <div class="col-md-4">
+                <label class="form-label small fw-bold">ID Barang</label>
+                <input type="text" name="q" class="form-control" value="{{ query_lot }}">
+              </div>
+              <div class="col-md-4">
+                <label class="form-label small fw-bold">Dari Tanggal</label>
+                <input type="date" name="start_date" class="form-control" value="{{ start_date }}">
+              </div>
+              <div class="col-md-4">
+                <label class="form-label small fw-bold">Sampai Tanggal</label>
+                <input type="date" name="end_date" class="form-control" value="{{ end_date }}">
+              </div>
+              <div class="col-md-4">
+                <label class="form-label small fw-bold">Username Petugas</label>
+                <input type="text" name="user_scan" class="form-control" placeholder="Contoh: operator1" value="{{ user_scan }}">
+              </div>
+              <div class="col-md-4">
+                <label class="form-label small fw-bold">Lokasi Tujuan</label>
+                <select name="lokasi_tujuan" class="form-select">
+                  <option value="">-- Semua Lokasi --</option>
+                  {% for loc in daftar_lokasi %}
+                    <option value="{{ loc.id }}">{{ loc.nama_area }}</option>
+                  {% endfor %}
+                </select>
+              </div>
+              <div class="col-md-4 mt-3">
+                <label class="form-label small fw-bold text-secondary">
+                  <i class="fa-solid fa-file-invoice me-1"></i> Filter Surat Jalan (SJ)
+                </label>
+                <select name="surat_jalan" class="form-select">
+                  <option value="">-- Semua Surat Jalan --</option>
+                  {% for sj in daftar_sj %}
+                    <option value="{{ sj.id }}" {% if sj_terpilih == sj.id|stringformat:"s" %}selected{% endif %}>
+                      SJ: {{ sj.no_surat_jalan }} | Plat: {{ sj.plat_nomor_truk }}
+                    </option>
+                  {% endfor %}
+                </select>
+              </div>      
+            </div>
+            <div class="row mt-4">
+              <div class="col text-end">
+                <a href="/laporan/" class="btn btn-light border btn-custom px-4"><i class="fa-solid fa-rotate-left me-1"></i> Reset</a>
+                <button class="btn btn-primary btn-custom px-4 ms-2" type="submit" style="background-color: var(--primary-color); border-color: var(--primary-color);">
+                  <i class="fa-solid fa-magnifying-glass me-1"></i> Terapkan Filter
+                </button>
+              </div>
+            </div>
+          </form>
+        </div>
+          
+          <div id="area-laporan-audit">
+            
+            <!-- Header Khusus Print (Disembunyikan saat di web) -->
+            <div class="print-header">
+                <h3 class="fw-bold mb-1">PT PERMATA DUNIA SUKSES UTAMA</h3>
+                <h5 class="mb-2">Laporan Pelacakan Gudang (Chain of Custody)</h5>
+                <small class="text-muted d-block">Tanggal Cetak: {% now "d M Y H:i" %} | Oleh: {{ user.username }}</small>
+            </div>
+
+            {% if lot_info %}
+            <div class="card p-4 mb-4 border-start border-4 border-info shadow-sm bg-white rounded-4">
+              <h5 class="fw-bold text-info mb-3"><i class="fa-solid fa-address-card me-2"></i>Barang yang dipilih</h5>
+              <div class="row">
+                <div class="col-md-4 border-end">
+                  <p class="text-muted mb-1 small fw-bold">Nomor ID Barang (UUID)</p>
+                  <h6 class="font-monospace fw-bold text-dark mb-0">{{ lot_info.id_lot }}</h6>
+                </div>
+                <div class="col-md-4 border-end px-4">
+                  <p class="text-muted mb-1 small fw-bold">Kode Batch Produksi</p>
+                  <h6 class="fw-bold text-dark mb-0"><i class="fa-brands fa-sap me-1 text-primary"></i>{{ lot_info.batch_sap|default:"-" }}</h6>
+                </div>
+                <div class="col-md-4 px-4">
+                  <p class="text-muted mb-1 small fw-bold">Status Saat Ini</p>
+                  {% if lot_info.status == 'Terkirim' %}
+                  <span class="badge bg-success px-3 py-2 fs-6"><i class="fa-solid fa-truck-fast me-1"></i> Terkirim (Keluar Gudang)</span>
+                  {% else %}
+                  <span class="badge bg-primary px-3 py-2 fs-6"><i class="fa-solid fa-box-open me-1"></i> Tersedia di {{ lot_info.lokasi_sekarang.kode_kavling }}</span>
+                  {% endif %}
+                </div>
+              </div>
+            </div>
+            {% endif %}
+
+            {% if lot_info %}
+            <div class="card border-0 shadow-sm mb-4 rounded-4 overflow-hidden">
+              <div class="card-header bg-white border-bottom py-3">
+                <h6 class="fw-bold text-primary mb-0">
+                  <i class="fa-solid fa-route me-2"></i>Peta Pergerakan Barang: <span class="text-dark">{{ lot_info.id_lot|upper }}</span>
+                </h6>
+              </div>
+              <div class="card-body bg-light p-4 overflow-auto">
+                
+                <div class="d-flex align-items-center" style="min-width: 800px; padding: 20px 0;">
+                  
+                  <div class="text-center position-relative" style="min-width: 150px;">
+                    <div class="bg-primary text-white rounded-4 shadow d-flex align-items-center justify-content-center mx-auto" 
+                        style="width: 100px; height: 90px; border: 3px solid #0a58ca;">
+                      <div>
+                        <i class="fa-solid fa-industry fa-2x mb-1"></i>
+                        <div class="fw-bold" style="font-size: 0.75rem;">Area Produksi</div>
+                      </div>
+                    </div>
+                    <div class="mt-2 text-muted fw-bold" style="font-size: 0.7rem;">Titik Awal</div>
+                  </div>
+
+                  {% for log in riwayat_log reversed %}
+                    
+                    <div class="flex-grow-1 position-relative d-flex flex-column align-items-center justify-content-center" style="height: 100px; min-width: 120px;">
+                      <div style="height: 4px; width: 100%; background-color: #adb5bd; position: absolute; top: 50%; transform: translateY(-50%); z-index: 1;"></div>
+                      <i class="fa-solid fa-caret-right text-secondary position-absolute" style="right: -5px; top: 50%; transform: translateY(-50%); z-index: 2; font-size: 1.5rem;"></i>
+                      
+                      <div class="bg-white border rounded shadow-sm px-2 py-1 position-relative" style="z-index: 3; margin-top: -60px; text-align: center;">
+                        <div class="fw-bold text-dark" style="font-size: 0.65rem;">
+                          <i class="fa-solid fa-user-shield text-primary me-1"></i>{{ log.user_scanner.username }}
+                        </div>
+                        <div class="text-muted" style="font-size: 0.6rem;">
+                          {{ log.waktu_scan|date:"d M Y" }} <br> {{ log.waktu_scan|time:"H:i:s" }}
+                        </div>
+                      </div>
+                    </div>
+
+                    <div class="text-center position-relative" style="min-width: 120px;">
+                      
+                      {% if log.surat_jalan and not log.lokasi_tujuan %}
+                        <div class="bg-success text-white rounded-3 shadow d-flex align-items-center justify-content-center mx-auto" 
+                            style="width: 100px; height: 80px; border: 3px solid #146c43;">
+                          <div>
+                            <i class="fa-solid fa-truck-ramp-box fa-2x mb-1"></i>
+                            <div class="fw-bold" style="font-size: 0.7rem;">Dimuat ke Truk</div>
+                          </div>
+                        </div>
+                        <div class="mt-2 text-dark fw-bold" style="font-size: 0.7rem;">SJ: {{ log.surat_jalan.no_surat_jalan }}</div>
+                        <div class="text-muted" style="font-size: 0.65rem;">Plat: {{ log.surat_jalan.plat_nomor_truk }}</div>
+                      
+                      {% elif log.surat_jalan and log.lokasi_tujuan %}
+                        <div class="bg-danger bg-opacity-10 text-danger rounded-3 shadow-sm d-flex align-items-center justify-content-center mx-auto" 
+                            style="border: 2px dashed #dc3545; 
+                                    width: {% if log.lokasi_tujuan.kapasitas_maksimal_palet < 50 %}80px{% else %}100px{% endif %}; 
+                                    height: {% if log.lokasi_tujuan.kapasitas_maksimal_palet < 50 %}80px{% else %}100px{% endif %};">
+                          <div>
+                            <i class="fa-solid fa-xmark fa-lg mb-1 text-danger"></i>
+                            <div class="fw-bold" style="font-size: 0.65rem; line-height: 1.2;">Batal Muat <br>({{ log.lokasi_tujuan.kode_kavling }})</div>
+                          </div>
+                        </div>
+                        <div class="mt-2 text-danger fw-bold" style="font-size: 0.65rem;">
+                          Dari SJ: {{ log.surat_jalan.no_surat_jalan|slice:":10" }}
+                        </div>
+
+                      {% else %}
+                        <div class="bg-warning bg-opacity-25 text-dark rounded-3 shadow-sm d-flex align-items-center justify-content-center mx-auto" 
+                            style="border: 2px dashed #ffc107; 
+                                    width: {% if log.lokasi_tujuan.kapasitas_maksimal_palet < 50 %}80px{% else %}100px{% endif %}; 
+                                    height: {% if log.lokasi_tujuan.kapasitas_maksimal_palet < 50 %}80px{% else %}100px{% endif %};">
+                          <div>
+                            <i class="fa-solid fa-boxes-stacked fa-lg mb-1 text-warning"></i>
+                            <div class="fw-bold text-dark" style="font-size: 0.65rem; line-height: 1.2;">{{ log.lokasi_tujuan.kode_kavling }}</div>
+                          </div>
+                          </div>
+                          <div class="mt-2 text-muted fw-bold" style="font-size: 0.65rem;">
+                            {{ log.lokasi_tujuan.lokasi_induk.nama_area }}
+                          </div>
+                      {% endif %}
+                      
+                    </div>
+                  {% endfor %}
+
+                </div>
+              </div>
+            </div>
+            {% endif %}
+
+            <div class="card border rounded-4 shadow-sm bg-white overflow-hidden mb-5">
+              <div class="d-flex justify-content-between align-items-center bg-light p-3 border-bottom no-print">
+                <h6 class="fw-bold mb-0 text-secondary"><i class="fa-solid fa-clock-rotate-left me-2"></i>Log Historis Pergerakan</h6>
+                <button onclick="window.print()" class="btn btn-sm btn-danger px-3 shadow-sm">
+                  <i class="fa-solid fa-file-pdf me-2"></i>Cetak Laporan PDF
+                </button>
+              </div>
+
+              <div class="table-responsive p-3">
+                <table class="table table-hover align-middle border">
+                  <thead class="table-light">
+                    <tr>
+                      <th><i class="fa-regular fa-clock me-1"></i> Timestamp</th>
+                      <th><i class="fa-solid fa-dolly me-1"></i> Tindakan (Aksi)</th>
+                      <th><i class="fa-solid fa-box me-1"></i> ID Palet & Produk</th>
+                      <th><i class="fa-solid fa-map-pin me-1"></i> Dari Lokasi</th>
+                      <th><i class="fa-solid fa-map-pin me-1"></i> Ke Lokasi / Truk</th>
+                      <th><i class="fa-solid fa-user-pen me-1"></i> Pengguna</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {% for log in riwayat_log %}
+                    <tr>
+                      <td>
+                        <strong class="text-dark">{{ log.waktu_scan|date:"d M Y" }}</strong><br />
+                        <small class="text-muted">{{ log.waktu_scan|time:"H:i:s" }} WIB</small>
+                      </td>
+                      <td>
+                        {% if not log.lokasi_asal and not log.surat_jalan %}
+                          <span class="badge bg-info rounded-pill px-3 py-2"><i class="fa-solid fa-plus me-1"></i> Dibentuk</span>
+                        {% elif log.lokasi_asal and log.lokasi_tujuan %}
+                          <span class="badge bg-secondary rounded-pill px-3 py-2"><i class="fa-solid fa-dolly me-1"></i> Dipindah</span>
+                        {% elif log.surat_jalan and not log.lokasi_tujuan %}
+                          <span class="badge bg-success rounded-pill px-3 py-2"><i class="fa-solid fa-truck-ramp-box me-1"></i> Dimuat</span>
+                        {% elif log.surat_jalan and log.lokasi_tujuan %}
+                          <span class="badge bg-danger rounded-pill px-3 py-2"><i class="fa-solid fa-xmark me-1"></i> Batal Muat</span>
+                        {% else %}
+                          <span class="badge bg-secondary rounded-pill px-3 py-2">Lainnya</span>
+                        {% endif %}
+                      </td>
+                      <td>
+                        <span class="fw-bold text-primary">{{ log.id_lot.kode_barang.nama_produk }}</span><br />
+                        
+                        <small class="font-monospace no-print">
+                          <a href="javascript:void(0)" 
+                             class="text-decoration-none btn-lihat-qr text-dark bg-light px-2 py-1 rounded border shadow-sm mt-1 d-inline-block"
+                             onclick="tampilkanQR(
+                                '{{ log.id_lot.id_lot|default:'-'|escapejs }}',
+                                '{{ log.id_lot.qr_code_image.url|default:'' }}',
+                                '{{ log.id_lot.kode_barang.nama_produk|escapejs }}',
+                                '{{ log.id_lot.batch_sap|default:'-'|escapejs }}',
+                                '{{ log.id_lot.qty|default:0|escapejs }}'
+                             )" title="Klik untuk Cetak Label QR">
+                             <i class="fa-solid fa-qrcode text-primary me-1"></i> LOT: {{ log.id_lot.id_lot|slice:':8'|upper }}
+                          </a>
+                        </small>
+                        
+                        <small class="font-monospace d-none d-print-block">LOT: {{ log.id_lot.id_lot|slice:':8'|upper }}</small>
+                      </td>
+                      <td>
+                        {% if not log.lokasi_asal %}
+                          <span class="badge bg-light text-dark border">Mesin Produksi</span>
+                        {% elif log.surat_jalan and log.lokasi_tujuan %}
+                          <span class="text-danger fw-bold"><i class="fas fa-truck"></i> Truk (Batal Muat)</span>
+                        {% else %}
+                          <span class="badge bg-light text-dark border">{{ log.lokasi_asal.kode_kavling }}</span>
+                        {% endif %}
+                      </td>
+                      <td>
+                        {% if log.surat_jalan and not log.lokasi_tujuan %}
+                          <div class="bg-danger bg-opacity-10 p-2 rounded small">
+                            <span class="fw-bold text-danger"><i class="fa-solid fa-file-invoice me-1"></i> SJ: {{ log.surat_jalan.no_surat_jalan }}</span><br />
+                            <span class="text-dark"><i class="fa-solid fa-truck me-1"></i> Plat: {{ log.surat_jalan.plat_nomor_truk }}</span>
+                          </div>
+                        {% else %}
+                          <span class="badge bg-light text-dark border">{{ log.lokasi_tujuan.kode_kavling }}</span>
+                        {% endif %}
+                      </td>
+                      <td><i class="fa-regular fa-circle-user text-muted me-1"></i>{{ log.user_scanner.username }}</td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                      <td colspan="6" class="text-center py-5 text-muted">
+                        <i class="fa-solid fa-folder-open fa-3x mb-3 opacity-25"></i>
+                        <h5 class="fw-bold">Data Tidak Ditemukan!</h5>
+                        <p>Tidak ada riwayat pergerakan yang cocok dengan pencarian.</p>
+                      </td>
+                    </tr>
+                    {% endfor %}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+        </div>      
+      </div>
+    </div>
+  </div>
+
+  <!-- ============================================== -->
+  <!-- MODAL POP-UP QR CODE -->
+  <!-- ============================================== -->
+  <div class="modal fade" id="modalQR" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-sm">
+      <div class="modal-content text-center rounded-4 shadow border-0">
+        <div class="modal-header border-0 pb-0 bg-light rounded-top-4 d-flex justify-content-between">
+          <h6 class="fw-bold text-secondary mb-0">Label Palet</h6>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        
+        <div class="modal-body pt-3" id="areaCetakQR">
+          <h5 class="fw-bold mb-0 text-dark">PT PDSU</h5>
+          <p class="small text-muted mb-2 pb-2 border-bottom" style="font-size: 10px;">MATERIAL TRACEABILITY</p>
+          
+          <h6 id="modalNamaBarang" class="text-dark fw-bold mb-2 mt-2" style="font-size: 14px;">Nama Barang</h6>
+          <img id="modalImgQR" src="" alt="QR Code" class="img-fluid mb-2 shadow-sm" style="max-width: 150px; border: 1px solid #ddd; padding: 10px; border-radius: 12px; background: white;">
+          
+          <div class="bg-light p-2 rounded text-start mx-auto border" style="font-size: 11px; max-width: 200px;">
+            <div class="d-flex justify-content-between mb-1">
+              <span class="text-muted">Batch:</span> <span id="modalBatch" class="fw-bold"></span>
+            </div>
+            <div class="d-flex justify-content-between mb-1">
+              <span class="text-muted">Qty:</span> <span id="modalQty" class="fw-bold"></span>
+            </div>
+            <div class="d-flex flex-column mt-1 pt-1 border-top">
+              <span class="text-muted" style="font-size: 9px;">ID LOT:</span>
+              <span id="modalIdLot" class="font-monospace fw-bold text-dark"></span>
+            </div>
+          </div>
+        </div>
+
+        <div class="modal-footer justify-content-center border-0 pt-2 pb-4 bg-light rounded-bottom-4">
+          <button type="button" class="btn btn-primary rounded-pill w-100 fw-bold shadow-sm" onclick="cetakQRDariModal()" style="background-color: var(--primary-color); border-color: var(--primary-color);">
+            <i class="fa-solid fa-print me-2"></i>Cetak Label Fisik
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+  
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  
+  <script>
+    // 1. FUNGSI NAVIGASI TABS
+    function pindahTab(targetId) {
+        const triggerEl = document.querySelector(`button[data-bs-target="#${targetId}"]`);
+        if (triggerEl) {
+          const tab = new bootstrap.Tab(triggerEl);
+          tab.show();
+        }
+    }
+
+    // 2. FUNGSI MENYIAPKAN DATA DI MODAL
+    function tampilkanQR(idLot, imageUrl, namaBarang, batch, qty) {
+        const modal = new bootstrap.Modal(document.getElementById('modalQR'));
+        const safeVal = (v) => (v && v !== 'None') ? v : '-';
+
+        document.getElementById('modalImgQR').src = imageUrl || '';
+        document.getElementById('modalNamaBarang').innerText = safeVal(namaBarang);
+        document.getElementById('modalBatch').innerText = safeVal(batch);
+        document.getElementById('modalIdLot').innerText = safeVal(idLot);
+        document.getElementById('modalQty').innerText = safeVal(qty);
+        
+        modal.show();
+    }
+
+    // 3. FUNGSI CETAK KHUSUS STIKER (NEW WINDOW PRINT)
+    function cetakQRDariModal() {
+        const isiCetak = document.getElementById('areaCetakQR').innerHTML;
+        const jendelaCetak = window.open('', '', 'width=400,height=500');
+        
+        jendelaCetak.document.write(`
+          <html>
+            <head>
+              <title>Cetak Label QR</title>
+              <style>
+                /* Styling Khusus Kertas Printer Thermal */
+                body { 
+                  text-align: center; 
+                  font-family: 'Segoe UI', Tahoma, sans-serif; 
+                  padding: 10px; 
+                  background-color: #fff; 
+                  color: #000; 
+                  margin: 0;
+                }
+                /* Hilangkan estetika layar seperti bayangan dan border melengkung */
+                .shadow-sm { box-shadow: none !important; }
+                .bg-light { background-color: #fff !important; }
+                .rounded, .rounded-4 { border-radius: 0 !important; }
+                .border { border: none !important; }
+                .border-top { border-top: 1px dashed #000 !important; }
+                .border-bottom { border-bottom: 2px solid #000 !important; }
+                
+                /* Layout Ukuran Presisi */
+                h5 { font-size: 20px; margin: 0 0 2px 0; }
+                p { margin: 0; }
+                h6 { font-size: 14px; margin: 10px 0; font-weight: bold; }
+                img { width: 140px; height: 140px; margin-bottom: 5px; }
+                
+                /* Layout Kotak Detail */
+                .text-start { text-align: left; margin: 0 auto; width: 180px; padding-top: 5px;}
+                .d-flex { display: flex; justify-content: space-between; margin-bottom: 2px;}
+                .flex-column { display: flex; flex-direction: column; }
+                .font-monospace { font-family: monospace; font-size: 11px; font-weight: bold;}
+                .text-muted { color: #000 !important; font-size: 10px; }
+              </style>
+            </head>
+            <body>
+              ${isiCetak}
+              <script>
+                // Tunggu gambar ter-load, lalu print dan otomatis tutup jendelanya
+                setTimeout(() => { 
+                    window.print(); 
+                    window.close(); 
+                }, 500);
+              <\/script>
+            </body>
+          </html>
+        `);
+        jendelaCetak.document.close();
+    }
+
+    // 4. INISIALISASI GRAFIK CHART.JS (Langsung Baca Array Python)
+    document.addEventListener("DOMContentLoaded", function() {
+
+      // === TAMBAHKAN LOGIKA WELCOME SCREEN DI SINI ===
+      const canvasEl = document.getElementById('gudangChart');
+      if(canvasEl) {
+        const ctx = canvasEl.getContext('2d');
+        new Chart(ctx, {
+          type: 'bar',
+          data: {
+            labels: {{ chart_labels|safe }},
+            datasets: [{
+              label: 'Jumlah Palet',
+              data: {{ chart_data|safe }},
+              backgroundColor: '#8540f5', 
+              borderRadius: 4
+            }]
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: { 
+              y: { beginAtZero: true, ticks: { precision: 0 } }
+            },
+            plugins: { legend: { display: false } }
+          }
+        });
+      }
+    });
+  </script>  
+</body>
+</html>

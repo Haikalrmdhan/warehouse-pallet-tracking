@@ -1,0 +1,23 @@
+{% extends "admin/index.html" %} {% block extrastyle %} {{ block.super }}
+<style>
+  /* Memperlebar menu sebelah kiri (Daftar Tabel) */
+  #content-main {
+    width: 195% !important;
+    float: left;
+  }
+
+  /* Menggeser dan menyesuaikan menu sebelah kanan (Recent Actions) */
+  #content-related {
+    width: 50% !important;
+    float: right;
+  }
+  /* Merapikan tampilan di layar HP (Responsif) */
+  @media (max-width: 768px) {
+    #content-main,
+    #content-related {
+      width: 100% !important;
+      float: none;
+    }
+  }
+</style>
+{% endblock %}

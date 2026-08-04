@@ -1,0 +1,1252 @@
+<!doctype html>
+<html lang="id">
+  <head>
+    <meta charset="UTF-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"
+    />
+    <title>Admin Gudang - PDSU</title>
+    <link
+      href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css"
+      rel="stylesheet"
+    />
+    <link
+      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"
+      rel="stylesheet"
+    />
+    <style>
+      :root {
+        --primary-color: #0d6efd;
+        --bg-color: #f4f7f6;
+      }
+
+      body {
+        background-color: var(--bg-color);
+        font-family: "Segoe UI", Tahoma, sans-serif;
+        padding-top: 70px;
+      }
+
+      .navbar-custom {
+        background-color: #ffffff;
+        box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+      }
+
+      .navbar-brand-icon {
+        background: var(--primary-color);
+        color: white;
+        padding: 8px 12px;
+        border-radius: 10px;
+        margin-right: 10px;
+      }
+
+      .main-card {
+        background: white;
+        border-radius: 16px;
+        border: none;
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.05);
+        overflow: hidden;
+      }
+
+      .card-header-custom {
+        background: linear-gradient(135deg, var(--primary-color), #0dcaf0);
+        color: white;
+        padding: 25px 20px;
+        text-align: center;
+      }
+
+      .nav-pills .nav-link {
+        color: #6c757d;
+        border-radius: 10px;
+        padding: 10px 15px;
+        font-weight: 600;
+        transition: 0.3s;
+        margin: 0 5px;
+      }
+
+      .nav-pills .nav-link.active {
+        background-color: #e9f2ff;
+        color: var(--primary-color);
+      }
+
+      /* Grid untuk Print banyak QR Code */
+      .print-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+        gap: 15px;
+      }
+
+      .qr-card {
+        border: 1px dashed #ccc;
+        padding: 15px;
+        text-align: center;
+        border-radius: 8px;
+        background: white;
+      }
+
+      @media print {
+        body * {
+          visibility: hidden;
+        }
+
+        #print-area,
+        #print-area * {
+          visibility: visible;
+        }
+
+        #print-area {
+          position: absolute;
+          left: 0;
+          top: 0;
+          width: 100%;
+        }
+
+        .no-print {
+          display: none !important;
+        }
+
+        .print-grid {
+          grid-template-columns: repeat(3, 1fr);
+          gap: 10mm;
+        }
+
+        .qr-card {
+          page-break-inside: avoid;
+          border: 1px solid #000;
+        }
+      }
+    </style>
+  </head>
+
+  <body>
+    <input type="hidden" name="csrfmiddlewaretoken" value="{{ csrf_token }}" />
+
+    <nav class="navbar navbar-custom fixed-top no-print">
+      <div class="container">
+        <div class="d-flex align-items-center">
+          <div class="navbar-brand-icon">
+            <i class="fa-solid fa-boxes-stacked"></i>
+          </div>
+          <div class="user-info">
+            <strong class="d-block text-dark">{{ user.username }}</strong>
+            <span class="text-muted" style="font-size: 0.8rem"
+              ><i class="fa-solid fa-shield-halved me-1"></i>Admin Gudang</span
+            >
+          </div>
+        </div>
+        <form action="{% url 'logout' %}" method="post" class="m-0">
+          {% csrf_token %}
+          <button
+            type="submit"
+            class="btn btn-outline-danger btn-sm rounded-pill px-3"
+          >
+            <i class="fa-solid fa-right-from-bracket me-1"></i>Logout
+          </button>
+        </form>
+      </div>
+    </nav>
+
+    <div class="container mb-5 mt-4">
+      <div class="row justify-content-center">
+        <div class="col-12 col-xl-10">
+          <div class="main-card no-print" id="main-interface">
+            <div class="card-header-custom">
+              <h3 class="mb-1 fw-bold">Form Admin & Kelola Data</h3>
+              <p class="mb-0 opacity-75">Sistem Pelacakan Palet Gudang</p>
+            </div>
+
+            <div class="card-body p-4">
+              <ul
+                class="nav nav-pills justify-content-center mb-4 border-bottom pb-3"
+                role="tablist"
+              >
+                <li class="nav-item">
+                  <button
+                    class="nav-link"
+                    data-bs-toggle="pill"
+                    data-bs-target="#tab-generate"
+                  >
+                    <i class="fa-solid fa-qrcode me-1"></i> Generate QR Palet
+                  </button>
+                </li>
+                <li class="nav-item">
+                  <button
+                    class="nav-link"
+                    data-bs-toggle="pill"
+                    data-bs-target="#tab-suratjalan"
+                  >
+                    <i class="fa-solid fa-file-invoice me-1"></i> Surat Jalan
+                  </button>
+                </li>
+                <li class="nav-item">
+                  <button
+                    class="nav-link"
+                    data-bs-toggle="pill"
+                    data-bs-target="#tab-lokasi"
+                  >
+                    <i class="fa-solid fa-warehouse me-1"></i> Data Lokasi
+                  </button>
+                </li>
+                <li class="nav-item">
+                  <button
+                    class="nav-link"
+                    data-bs-toggle="pill"
+                    data-bs-target="#tab-barang"
+                  >
+                    <i class="fa-solid fa-box-open me-1"></i> Data Barang
+                  </button>
+                </li>
+                <li class="nav-item">
+                  <button
+                    class="nav-link text-danger"
+                    data-bs-toggle="pill"
+                    data-bs-target="#tab-akun"
+                  >
+                    <i class="fa-solid fa-users me-1"></i> Kelola Akun
+                  </button>
+                </li>
+              </ul>
+
+              <div id="welcome-screen" class="text-center py-5 my-4 bg-light rounded-4 border shadow-sm">
+                <i class="fa-solid fa-boxes-stacked fa-4x mb-3 opacity-25" style="color: var(--primary-color)"></i>
+                <h3 class="fw-bold text-dark">Selamat Datang di Portal Admin</h3>
+                <p class="text-muted mb-0">Silakan pilih menu di atas untuk mulai menggunakan sistem atau mengelola data.</p>
+              </div>
+
+              <div class="tab-content">
+
+                <div class="tab-pane fade" id="tab-generate" role="tabpanel">
+                  <div class="row justify-content-center">
+                    <div class="col-md-8">
+                      <div class="alert alert-info small">
+                        <i class="fa-solid fa-circle-info me-2"></i>Fitur ini
+                        digunakan untuk membuat stiker QR Code setiap palet
+                        berdasarkan Kode Batch Produksi.
+                      </div>
+
+                      <div class="mb-3">
+                        <label class="form-label fw-bold small"
+                          >Kode Batch Produksi</label
+                        >
+                        <input
+                          type="text"
+                          id="input-batch-sap"
+                          class="form-control"
+                          placeholder="Contoh: R1-50KG-2026-05-001"
+                        />
+                      </div>
+
+                      <div class="mb-3">
+                        <label class="form-label fw-bold small"
+                          >Pilih Barang</label
+                        >
+                        <select id="pilih-barang" class="form-select">
+                          <option value="">-- Jenis & Tipe Gula --</option>
+                          {% for brg in daftar_barang %}
+                          <option value="{{ brg.kode_sku }}">
+                            {{ brg.kode_sku }} - {{ brg.nama_produk }}
+                          </option>
+                          {% endfor %}
+                        </select>
+                      </div>
+
+                      <div class="row">
+                        <div class="col-md-6 mb-3">
+                          <label class="form-label fw-bold small"
+                            >Jumlah Palet Fisik</label
+                          >
+                          <input
+                            type="number"
+                            id="input-jml-palet"
+                            class="form-control"
+                            placeholder="Berapa palet?"
+                          />
+                        </div>
+                        <div class="col-md-6 mb-3">
+                          <label class="form-label fw-bold small"
+                            >Jumlah Sak per Palet</label
+                          >
+                          <input
+                            type="number"
+                            id="input-qty-palet"
+                            class="form-control"
+                            placeholder="Contoh: 20"
+                          />
+                        </div>
+                      </div>
+
+                      <div class="mb-4">
+                        <label class="form-label fw-bold small"
+                          >Lokasi Awal (Stasiun Bagging)</label
+                        >
+                        <select id="pilih-lokasi" class="form-select">
+                          <option value="">
+                            -- Pilih Lokasi Pembentukan Palet --
+                          </option>
+                          {% for loc in daftar_lokasi %}
+                          <option value="{{ loc.id }}">
+                            {{ loc.nama_area }}
+                          </option>
+                          {% endfor %}
+                        </select>
+                      </div>
+
+                      <button
+                        id="btn-submit-batch"
+                        class="btn btn-primary w-100 py-2 fw-bold"
+                        onclick="generateBatchQR()"
+                      >
+                        <i class="fa-solid fa-print me-2"></i>Generate & Cetak
+                        Stiker Palet
+                      </button>
+                    </div>
+                  </div>
+                </div>
+
+                <div class="tab-pane fade" id="tab-suratjalan" role="tabpanel">
+                  <div class="d-flex justify-content-between mb-3">
+                    <h5 class="fw-bold">
+                      <i class="fa-solid fa-file-invoice text-primary me-2"></i
+                      >Data Surat Jalan
+                    </h5>
+                    <button
+                      class="btn btn-sm btn-primary"
+                      onclick="bukaModalSJ()"
+                    >
+                      <i class="fa-solid fa-plus me-1"></i>Input SJ Baru
+                    </button>
+                  </div>
+                  
+                  <!-- FITUR PENCARIAN SERVER-SIDE & FILTER STATUS -->
+                  <form method="GET" action="{% url 'penerimaan' %}" class="mb-3">
+                    <!-- Penanda agar Tab Surat Jalan tetap terbuka saat refresh -->
+                    <input type="hidden" name="tab" value="suratjalan">
+                    
+                    <div class="row">
+                      <div class="col-md-9">
+                        <div class="input-group input-group-sm shadow-sm">
+                          <span class="input-group-text bg-white text-muted"><i class="fa-solid fa-magnifying-glass"></i></span>
+                          
+                          <input type="text" name="q_sj" value="{{ q_sj }}" class="form-control" placeholder="Cari No. SJ atau Plat Truk...">
+                          
+                          <select name="status_sj" class="form-select bg-light text-secondary fw-bold" style="max-width: 160px;">
+                            <option value="">Semua Status</option>
+                            <option value="Pending" {% if status_sj == 'Pending' %}selected{% endif %}>⏳ Pending</option>
+                            <option value="Selesai" {% if status_sj == 'Selesai' %}selected{% endif %}>✅ Selesai</option>
+                          </select>
+                          
+                          <!-- TOMBOL KONFIRMASI (FILTER) & RESET -->
+                          <button type="submit" class="btn btn-primary px-3 fw-bold"><i class="fa-solid fa-filter me-1"></i> Filter</button>
+                          <a href="{% url 'penerimaan' %}?tab=suratjalan" class="btn btn-outline-secondary px-3" title="Reset Filter"><i class="fa-solid fa-rotate-left"></i></a>
+                        </div>
+                      </div>
+                    </div>
+                  </form>
+
+                  <div class="table-responsive">
+                    <table
+                      class="table table-hover table-bordered align-middle text-center small"
+                    >
+                      <thead class="table-light">
+                        <tr>
+                          <th>No. Surat Jalan</th>
+                          <th class="text-start">Tujuan / Customer</th>
+                          <th>Plat Truk</th>
+                          <th style="width: 150px;">Progress Muatan</th>
+                          <th>Status</th>
+                          <th class="text-center" style="width: 100px">Aksi</th>
+                        </tr>
+                      </thead>
+
+                      <tbody>
+                        {% for sj in daftar_sj %}
+                        <tr data-status="{{ sj.status|lower }}">
+                          <td class="fw-bold">{{ sj.no_surat_jalan }}</td>
+                          <td class="text-start">{{ sj.tujuan }}</td>
+                          <td>
+                            <span class="badge bg-secondary"
+                              >{{ sj.plat_nomor_truk }}</span
+                            >
+                          </td>
+
+                          <td class="align-middle px-3">
+                            <div class="progress shadow-sm" style="height: 18px; border-radius: 10px; background-color: #e9ecef;">
+                              {% if sj.target_palet > 0 %}
+                                <div class="progress-bar {% if sj.status == 'Selesai' %}bg-success{% else %}bg-primary{% endif %} fw-bold" 
+                                     role="progressbar"
+                                      style="width: {% widthratio sj.termuat_palet sj.target_palet 100 %}%; font-size: 0.7rem;">
+                                  {{ sj.termuat_palet }} / {{ sj.target_palet }}
+                                </div>
+                              {% else %}
+                                <div class="progress-bar bg-secondary" role="progressbar" style="width: 100%; font-size: 0.7rem;">0 / 0</div>
+                              {% endif %}
+                            </div>
+                            <small class="text-muted" style="font-size: 0.6rem;">Target: {{ sj.target_palet }} Palet</small>
+                          </td>
+
+                          <td>
+                            {% if sj.status == 'Selesai' %}
+                            <span class="badge bg-success">Selesai</span>
+                            {% else %}
+                            <span class="badge bg-warning text-dark"
+                              >Pending</span
+                            >
+                            {% endif %}
+                          </td>
+                          <td>
+                            <div class="btn-group btn-group-sm">
+
+                              {% if sj.status == 'Pending' %}
+                              <button
+                                class="btn btn-outline-success"
+                                onclick="ubahStatusSJ('{{ sj.id }}', 'Selesai')"
+                                title="Tandai Selesai (Truk Berangkat)"
+                              >
+                                <i class="fa-solid fa-check"></i>
+                              </button>
+                              {% else %}
+                              <button
+                                class="btn btn-outline-warning"
+                                onclick="ubahStatusSJ('{{ sj.id }}', 'Pending')"
+                                title="Kembalikan ke Pending"
+                              >
+                                <i class="fa-solid fa-rotate-left"></i>
+                              </button>
+                              {% endif %}
+
+                              <button
+                                class="btn btn-outline-primary"
+                                onclick="bukaModalSJ('{{ sj.id }}', '{{ sj.no_surat_jalan }}', '{{ sj.tujuan }}', '{{ sj.plat_nomor_truk }}')"
+                                title="Edit Data"
+                              >
+                                <i class="fa-solid fa-pen"></i>
+                              </button>
+                              <button
+                                class="btn btn-outline-danger"
+                                onclick="hapusData('suratjalan', '{{ sj.id }}')"
+                                title="Hapus Data"
+                              >
+                                <i class="fa-solid fa-trash"></i>
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                          <td colspan="5" class="text-muted">
+                            Belum ada Surat Jalan.
+                          </td>
+                        </tr>
+                        {% endfor %}
+                      </tbody>
+                    </table>
+
+                    <!-- BLOK TOMBOL PAGINATION (HALAMAN) -->
+                    {% if daftar_sj.has_other_pages %}
+                    <nav aria-label="Page navigation" class="mt-3">
+                      <ul class="pagination justify-content-center pagination-sm mb-0">
+                        {% if daftar_sj.has_previous %}
+                        <li class="page-item"><a class="page-link" href="?page={{ daftar_sj.previous_page_number }}&q_sj={{ q_sj }}&status_sj={{ status_sj }}&tab=suratjalan"><i class="fa-solid fa-angles-left"></i></a></li>
+                        {% else %}
+                        <li class="page-item disabled"><span class="page-link"><i class="fa-solid fa-angles-left"></i></span></li>
+                        {% endif %}
+
+                        {% for i in daftar_sj.paginator.page_range %}
+                          {% if daftar_sj.number == i %}
+                          <li class="page-item active"><span class="page-link fw-bold">{{ i }}</span></li>
+                          {% else %}
+                          <li class="page-item"><a class="page-link text-primary" href="?page={{ i }}&q_sj={{ q_sj }}&status_sj={{ status_sj }}&tab=suratjalan">{{ i }}</a></li>
+                          {% endif %}
+                        {% endfor %}
+
+                        {% if daftar_sj.has_next %}
+                        <li class="page-item"><a class="page-link" href="?page={{ daftar_sj.next_page_number }}&q_sj={{ q_sj }}&status_sj={{ status_sj }}&tab=suratjalan"><i class="fa-solid fa-angles-right"></i></a></li>
+                        {% else %}
+                        <li class="page-item disabled"><span class="page-link"><i class="fa-solid fa-angles-right"></i></span></li>
+                        {% endif %}
+                      </ul>
+                    </nav>
+                    {% endif %}
+
+                  </div>
+                </div>
+
+                <div class="tab-pane fade" id="tab-lokasi" role="tabpanel">
+                  <div class="d-flex justify-content-between mb-3">
+                    <h5 class="fw-bold">
+                      <i class="fa-solid fa-warehouse text-success me-2"></i
+                      >Data Lokasi Gudang
+                    </h5>
+                    <button
+                      class="btn btn-sm btn-success"
+                      onclick="bukaModalLokasi()"
+                    >
+                      <i class="fa-solid fa-plus me-1"></i>Lokasi Baru
+                    </button>
+                  </div>
+                  <div class="table-responsive">
+                    <table
+                      class="table table-hover table-bordered align-middle text-center small"
+                    >
+                      <thead class="table-light">
+                        <tr>
+                          <th>Kode Area</th>
+                          <th class="text-start">Nama Lokasi</th>
+                          <th>Tipe Zona</th>
+                          <th>Kapasitas (Palet)</th>
+                          <th class="text-center" style="width: 100px">Aksi</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {% for loc in daftar_semua_lokasi %}
+                        <tr>
+                          <td class="fw-bold">{{ loc.kode_lokasi }}</td>
+                          <td class="text-start">{{ loc.nama_area }}</td>
+                          <td>
+                            <span class="badge bg-primary"
+                              >{{ loc.tipe_zona }}</span
+                            >
+                          </td>
+                          <td>
+                            {% if loc.kapasitas_maksimal_palet == 0 %} Tak Terbatas{% else %}{{ loc.kapasitas_maksimal_palet }}{% endif %}
+                          </td>
+                          <td>
+                            <div class="btn-group btn-group-sm">
+                              <button
+                                class="btn btn-outline-primary"
+                                title="Edit Data"
+                                onclick="bukaModalLokasi(
+                                  '{{ loc.id }}', 
+                                  '{{ loc.kode_lokasi|escapejs }}', 
+                                  '{{ loc.nama_area|escapejs }}', 
+                                  '{{ loc.tipe_zona|escapejs }}', 
+                                  '{{ loc.kapasitas_maksimal_palet }}'
+                                  )"
+                              >
+                                <i class="fa-solid fa-pen"></i>
+                              </button>
+                              <button
+                                class="btn btn-outline-danger"
+                                onclick="hapusData('lokasi', '{{ loc.id }}')"
+                                title="Hapus Data"
+                              >
+                                <i class="fa-solid fa-trash"></i>
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                          <td colspan="5" class="text-muted">
+                            Data lokasi masih kosong.
+                          </td>
+                        </tr>
+                        {% endfor %}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+
+                <div class="tab-pane fade" id="tab-barang" role="tabpanel">
+                  <div class="d-flex justify-content-between mb-3">
+                    <h5 class="fw-bold">
+                      <i class="fa-solid fa-box-open text-success me-2"></i
+                      >Katalog Produk (SKU)
+                    </h5>
+                    <button
+                      class="btn btn-sm btn-success"
+                      onclick="bukaModalBarang()"
+                    >
+                      <i class="fa-solid fa-plus me-1"></i>SKU Baru
+                    </button>
+                  </div>
+                  <div class="table-responsive">
+                    <table
+                      class="table table-hover table-bordered align-middle text-center small"
+                    >
+                      <thead class="table-light">
+                        <tr>
+                          <th>Kode SKU</th>
+                          <th class="text-start">Nama Produk</th>
+                          <th>Kategori</th>
+                          <th>Kemasan Fisik</th>
+                          <th>Umur Simpan</th>
+                          <th class="text-center" style="width: 100px">Aksi</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {% for brg in daftar_semua_barang %}
+                        <tr>
+                          <td class="fw-bold">{{ brg.kode_sku }}</td>
+                          <td class="text-start">{{ brg.nama_produk }}</td>
+                          <td>
+                            <span class="badge bg-secondary"
+                              >{{ brg.kategori }}</span
+                            >
+                          </td>
+                          <td>{{ brg.tipe_kemasan }}</td>
+                          <td>{{ brg.umur_simpan_bulan }} Bulan</td>
+                          <td>
+                            <div class="btn-group btn-group-sm">
+                              <button
+                                class="btn btn-outline-primary"
+                                onclick="bukaModalBarang('{{ brg.kode_sku }}', '{{ brg.nama_produk }}', '{{ brg.kategori }}', '{{ brg.tipe_kemasan }}', '{{ brg.umur_simpan_bulan }}')"
+                                title="Edit Data"
+                              >
+                                <i class="fa-solid fa-pen"></i>
+                              </button>
+                              <button
+                                class="btn btn-outline-danger"
+                                onclick="hapusData('barang', '{{ brg.kode_sku }}')"
+                                title="Hapus Data"
+                              >
+                                <i class="fa-solid fa-trash"></i>
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                          <td colspan="6" class="text-muted">
+                            Data SKU produk masih kosong.
+                          </td>
+                        </tr>
+                        {% endfor %}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+
+                <div class="tab-pane fade" id="tab-akun" role="tabpanel">
+                  <div class="d-flex justify-content-between mb-3">
+                    <h5 class="fw-bold">
+                      <i class="fa-solid fa-users text-danger me-2"></i
+                      >Manajemen Pengguna
+                    </h5>
+                    <button
+                      class="btn btn-sm btn-danger"
+                      onclick="bukaModalAkun()"
+                    >
+                      <i class="fa-solid fa-user-plus me-1"></i>Buat Akun Baru
+                    </button>
+                  </div>
+                  <div class="table-responsive">
+                    <table
+                      class="table table-hover table-bordered align-middle text-center small"
+                    >
+                      <thead class="table-light">
+                        <tr>
+                          <th class="text-start">Username</th>
+                          <th>Hak Akses (Role)</th>
+                          <th>Status</th>
+                          <th class="text-center" style="width: 100px">Aksi</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {% for usr in daftar_user %}
+                        <tr>
+                          <td class="text-start fw-bold">{{ usr.username }}</td>
+                          <td>
+                            {% if usr.is_superuser %}
+                            <span class="badge bg-dark">Superadmin</span>
+                            {% elif usr.groups.all.0.name == 'Admin' %}
+                            <span class="badge bg-danger">Admin Gudang</span>
+                            {% elif usr.groups.all.0.name == 'Supervisor' %}
+                            <span class="badge bg-info text-dark"
+                              >Kepala Gudang</span
+                            >
+                            {% else %}
+                            <span class="badge bg-primary"
+                              >Operator Forklift</span
+                            >
+                            {% endif %}
+                          </td>
+                          <td>
+                            {% if usr.is_active %}
+                            <span class="text-success"
+                              ><i class="fa-solid fa-circle-check"></i>
+                              Aktif</span
+                            >
+                            {% else %}
+                            <span class="text-danger"
+                              ><i class="fa-solid fa-circle-xmark"></i>
+                              Nonaktif</span
+                            >
+                            {% endif %}
+                          </td>
+                          <td>
+                            <div class="btn-group btn-group-sm">
+                              <button
+                                class="btn btn-outline-primary"
+                                onclick="bukaModalAkun('{{ usr.id }}', '{{ usr.username }}', '{% if usr.groups.all.0 %}{{ usr.groups.all.0.name }}{% endif %}')"
+                                title="Edit Data"
+                              >
+                                <i class="fa-solid fa-pen"></i>
+                              </button>
+                              {% if not usr.is_superuser %}
+                              <button
+                                class="btn btn-outline-danger"
+                                onclick="hapusData('akun', '{{ usr.id }}')"
+                                title="Hapus Data"
+                              >
+                                <i class="fa-solid fa-trash"></i>
+                              </button>
+                              {% endif %}
+                            </div>
+                          </td>
+                        </tr>
+                        {% endfor %}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div id="print-area" style="display: none">
+            <div
+              class="d-flex justify-content-between align-items-center mb-4 mt-3 no-print"
+            >
+              <h4 class="fw-bold text-primary">
+                <i class="fa-solid fa-circle-check me-2"></i>Stiker Palet Siap
+                Cetak
+              </h4>
+              <div>
+                <button
+                  onclick="window.print()"
+                  class="btn btn-primary px-4 fw-bold"
+                >
+                  <i class="fa-solid fa-print me-2"></i>Cetak Sekarang
+                </button>
+                <button
+                  onclick="location.reload()"
+                  class="btn btn-outline-secondary px-4 ms-2"
+                >
+                  <i class="fa-solid fa-rotate-left me-2"></i>Kembali
+                </button>
+              </div>
+            </div>
+
+            <div class="print-grid" id="qr-container"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="modal fade" id="modalSJ" tabindex="-1">
+      <div class="modal-dialog">
+        <div class="modal-content">
+          <div class="modal-header bg-primary text-white">
+            <h5 class="modal-title fw-bold" id="titleSJ">Input Surat Jalan</h5>
+            <button
+              type="button"
+              class="btn-close btn-close-white"
+              data-bs-dismiss="modal"
+            ></button>
+          </div>
+          <div class="modal-body">
+            <input type="hidden" id="edit-id-sj" />
+            <div class="mb-2">
+              <label class="small fw-bold">No. Surat Jalan (SAP)</label>
+              <input
+                type="text"
+                id="m-no-sj"
+                class="form-control"
+                placeholder="Contoh: DO-2026-05-001"
+              />
+            </div>
+            <div class="mb-2">
+              <label class="small fw-bold">Tujuan / Customer</label>
+              <input
+                type="text"
+                id="m-tujuan"
+                class="form-control"
+                placeholder="Contoh: PT. Indofood"
+              />
+            </div>
+            <div class="mb-2">
+              <label class="small fw-bold">Plat Nomor Truk</label>
+              <input
+                type="text"
+                id="m-truk"
+                class="form-control"
+                placeholder="Contoh: B 1234 CD"
+              />
+            </div>
+          </div>
+
+          <div class="card border-primary bg-primary bg-opacity-10 p-3 shadow-sm">
+              <label class="small fw-bold text-primary mb-1"><i class="fa-solid fa-bullseye me-1"></i>Target Kuantitas (Jumlah Palet)</label>
+              <input type="number" id="m-target-palet" class="form-control border-primary" placeholder="Berapa palet yang harus dimuat?" min="1" />
+              <small class="text-muted mt-1" style="font-size: 0.7rem;">Sistem akan mengunci muatan dan otomatis berstatus Selesai jika target ini tercapai.</small>
+            </div>
+
+          <div class="modal-footer">
+            <button
+              class="btn btn-primary w-100"
+              onclick="simpanMaster('suratjalan')"
+            >
+              Simpan Surat Jalan
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="modal fade" id="modalLokasi" tabindex="-1">
+      <div class="modal-dialog modal-sm">
+        <div class="modal-content">
+          <div class="modal-header bg-success text-white">
+            <h5 class="modal-title fw-bold" id="titleLokasi">Tambah Lokasi</h5>
+            <button
+              type="button"
+              class="btn-close btn-close-white"
+              data-bs-dismiss="modal"
+            ></button>
+          </div>
+          <div class="modal-body">
+            <input type="hidden" id="edit-id-lokasi" />
+            <div class="mb-2">
+              <label class="small fw-bold">Kode Lokasi</label
+              ><input
+                type="text"
+                id="m-kode-lokasi"
+                class="form-control"
+                placeholder="Contoh: BLK-A1"
+              />
+            </div>
+            <div class="mb-2">
+              <label class="small fw-bold">Nama Area</label
+              ><input
+                type="text"
+                id="m-nama-area"
+                class="form-control"
+                placeholder="Contoh: Gudang Utama - Blok A1"
+              />
+            </div>
+            <div class="mb-2">
+              <label class="small fw-bold">Tipe Zona</label>
+              <select id="m-tipe-zona" class="form-select">
+                <option value="Stasiun Bagging">Stasiun Bagging (Awal)</option>
+                <option value="Blok Penyimpanan">Blok Penyimpanan</option>
+                <option value="Area Transit">Area Transit / Staging</option>
+                <option value="Loading Dock">Loading Dock (Keluar)</option>
+              </select>
+            </div>
+            <div id="grid-kavling-input">
+              <div class="row">
+                <div class="col-6 mb-2">
+                  <label class="small fw-bold">Jumlah Lorong</label>
+                  <input type="number" id="m-baris" class="form-control" value="5" min="1" />
+                </div>
+                <div class="col-6 mb-2">
+                  <label class="small fw-bold">Slot per Baris</label>
+                  <input type="number" id="m-slot" class="form-control" value="10" min="1" />
+                </div>
+              </div>
+              <small class="text-muted" style="font-size: 0.7rem;">
+                <i class="fa-solid fa-circle-info me-1"></i>Sistem akan otomatis meng-generate Kavling sebanyak (Baris x Slot).
+              </small>
+            </div>
+          </div>
+          <div class="modal-footer">
+            <button
+              class="btn btn-success w-100"
+              onclick="simpanMaster('lokasi')"
+            >
+              Simpan Data
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="modal fade" id="modalBarang" tabindex="-1">
+      <div class="modal-dialog">
+        <div class="modal-content">
+          <div class="modal-header bg-success text-white">
+            <h5 class="modal-title fw-bold" id="titleBarang">
+              Tambah SKU Produk
+            </h5>
+            <button
+              type="button"
+              class="btn-close btn-close-white"
+              data-bs-dismiss="modal"
+            ></button>
+          </div>
+          <div class="modal-body">
+            <input type="hidden" id="edit-id-barang" />
+            <div class="mb-2">
+              <label class="small fw-bold">Kode SKU</label
+              ><input
+                type="text"
+                id="m-kode-sku"
+                class="form-control"
+                placeholder="Contoh: FG-RS-50"
+              />
+            </div>
+            <div class="mb-2">
+              <label class="small fw-bold">Nama Produk</label
+              ><input
+                type="text"
+                id="m-nama-produk"
+                class="form-control"
+                placeholder="Contoh: Gula Rafinasi Standar R1"
+              />
+            </div>
+            <div class="mb-2">
+              <label class="small fw-bold">Kategori</label>
+              <select id="m-kategori" class="form-select">
+                <option value="Gula Standar">Gula Standar</option>
+                <option value="Gula Premium">Gula Premium</option>
+                <option value="Gula Cair">Gula Cair</option>
+              </select>
+            </div>
+            <div class="mb-2">
+              <label class="small fw-bold">Tipe Kemasan / Handling Unit</label
+              ><input
+                type="text"
+                id="m-kemasan"
+                class="form-control"
+                placeholder="Contoh: Palet (50 Sak @50kg)"
+              />
+            </div>
+            <div class="mb-2">
+              <label class="small fw-bold">Umur Simpan (Bulan)</label
+              ><input
+                type="number"
+                id="m-umur"
+                class="form-control"
+                value="24"
+              />
+            </div>
+          </div>
+          <div class="modal-footer">
+            <button
+              class="btn btn-success w-100"
+              onclick="simpanMaster('barang')"
+            >
+              Simpan Data
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="modal fade" id="modalAkun" tabindex="-1">
+      <div class="modal-dialog modal-sm">
+        <div class="modal-content">
+          <div class="modal-header bg-danger text-white">
+            <h5 class="modal-title fw-bold" id="titleAkun">Tambah Akun</h5>
+            <button
+              type="button"
+              class="btn-close btn-close-white"
+              data-bs-dismiss="modal"
+            ></button>
+          </div>
+          <div class="modal-body">
+            <input type="hidden" id="edit-id-akun" />
+            <div class="mb-2">
+              <label class="small fw-bold">Username</label>
+              <input
+                type="text"
+                id="m-username"
+                class="form-control"
+                placeholder="tanpa spasi"
+              />
+            </div>
+            <div class="mb-2">
+              <label class="small fw-bold">Password</label>
+              <input
+                type="password"
+                id="m-password"
+                class="form-control"
+                placeholder="Ketik sandi baru..."
+              />
+              <small
+                class="text-muted"
+                id="hint-password"
+                style="display: none; font-size: 0.7rem"
+                >Kosongkan jika tidak ingin mengubah sandi.</small
+              >
+            </div>
+            <div class="mb-2">
+              <label class="small fw-bold">Hak Akses (Role)</label>
+              <select id="m-role" class="form-select">
+                <option value="Operator">Operator Forklift</option>
+                <option value="Supervisor">Kepala Gudang</option>
+                <option value="Admin">Admin Gudang</option>
+              </select>
+            </div>
+          </div>
+          <div class="modal-footer">
+            <button class="btn btn-danger w-100" onclick="simpanMaster('akun')">
+              Simpan Akun
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+      const csrftoken = document.querySelector("[name=csrfmiddlewaretoken]").value;
+
+      // 1. Inisialisasi Modal yang Aman
+      let modalSjInstance = null,
+        modalAkunInstance = null,
+        modalBrg = null,
+        modalLok = null;
+
+      document.addEventListener("DOMContentLoaded", () => {
+        const elSJ = document.getElementById("modalSJ");
+        if (elSJ) modalSjInstance = new bootstrap.Modal(elSJ);
+
+        const elAkun = document.getElementById("modalAkun");
+        if (elAkun) modalAkunInstance = new bootstrap.Modal(elAkun);
+
+        const elBrg = document.getElementById("modalBarang");
+        if (elBrg) modalBrg = new bootstrap.Modal(elBrg);
+
+        const elLok = document.getElementById("modalLokasi");
+        if (elLok) modalLok = new bootstrap.Modal(elLok);
+
+        const menuTabs = document.querySelectorAll('button[data-bs-toggle="pill"]');
+        const welcomeScreen = document.getElementById("welcome-screen");
+
+        menuTabs.forEach(tab => {
+          tab.addEventListener('click', () => {
+            if (welcomeScreen) {
+              welcomeScreen.style.display = 'none'; 
+            }
+          });
+        });
+
+        // ==============================================================
+        // REVISI 1: Logika Mencegah Tab Tertutup (Menggunakan API Bootstrap 5)
+        // ==============================================================
+        const urlParams = new URLSearchParams(window.location.search);
+        if (urlParams.has('page')) {
+            if (welcomeScreen) welcomeScreen.style.display = 'none';
+            
+            // Panggil tombol tab Surat Jalan
+            const tabSuratJalanBtn = document.querySelector('button[data-bs-target="#tab-suratjalan"]');
+            if (tabSuratJalanBtn) {
+                // Gunakan fungsi resmi Bootstrap untuk menampilkan tab
+                const tabInstance = new bootstrap.Tab(tabSuratJalanBtn);
+                tabInstance.show();
+            }
+        }
+      });
+
+      // 2. FUNGSI BUKA MODAL
+      function bukaModalSJ(id = "", no_sj = "", tujuan = "", truk = "", target = "") {
+        document.getElementById("titleSJ").innerHTML = id ? '<i class="fa-solid fa-pen-to-square me-2"></i>Edit Surat Jalan' : '<i class="fa-solid fa-truck-ramp-box me-2"></i>Input Surat Jalan Baru';
+        document.getElementById("edit-id-sj").value = id;
+        document.getElementById("m-no-sj").value = no_sj;
+        document.getElementById("m-no-sj").readOnly = id ? true : false;
+        document.getElementById("m-tujuan").value = tujuan;
+        document.getElementById("m-truk").value = truk;
+        document.getElementById("m-target-palet").value = target; 
+        if (modalSjInstance) modalSjInstance.show();
+      }
+
+      function bukaModalAkun(id = "", username = "", role = "Operator") {
+        document.getElementById("titleAkun").innerText = id ? "Edit Akun Pengguna" : "Buat Akun Baru";
+        document.getElementById("edit-id-akun").value = id;
+        document.getElementById("m-username").value = username;
+        document.getElementById("m-username").readOnly = id ? true : false;
+        document.getElementById("m-password").value = "";
+        document.getElementById("m-role").value = role || "Operator";
+        document.getElementById("hint-password").style.display = id ? "block" : "none";
+        if (modalAkunInstance) modalAkunInstance.show();
+      }
+
+      function bukaModalBarang(kode = "", nama = "", kategori = "Gula Standar", kemasan = "", umur = "24") {
+        document.getElementById("titleBarang").innerText = kode ? "Edit Master SKU" : "Tambah Master SKU";
+        document.getElementById("edit-id-barang").value = kode;
+        document.getElementById("m-kode-sku").value = kode;
+        document.getElementById("m-kode-sku").readOnly = kode ? true : false;
+        document.getElementById("m-nama-produk").value = nama;
+        document.getElementById("m-kategori").value = kategori;
+        document.getElementById("m-kemasan").value = kemasan;
+        document.getElementById("m-umur").value = umur;
+        if (modalBrg) modalBrg.show();
+      }
+
+      function bukaModalLokasi(id = "", kode_lok = "", nama = "", zona = "Blok Penyimpanan", kapasitas = "100") {
+        document.getElementById("titleLokasi").innerText = id ? "Edit Lokasi" : "Tambah Lokasi";
+        document.getElementById("edit-id-lokasi").value = id;
+        
+        document.getElementById("m-kode-lokasi").value = kode_lok;
+        document.getElementById("m-kode-lokasi").readOnly = id ? true : false; // Kode Area dikunci jika mode edit
+        
+        document.getElementById("m-nama-area").value = nama;
+        document.getElementById("m-tipe-zona").value = zona;
+        
+        // Sembunyikan opsi Generate Kavling jika sedang mode Edit Data
+        if (id) {
+          document.getElementById("grid-kavling-input").style.display = "none";
+        } else {
+          document.getElementById("grid-kavling-input").style.display = "block";
+          document.getElementById("m-baris").value = "5";
+          document.getElementById("m-slot").value = "10";
+        }
+        
+        if (modalLok) modalLok.show();
+      }
+
+      // 3. FUNGSI SIMPAN DATA SENTRAL
+      function simpanMaster(tipe) {
+        let payload = {};
+        let id_edit = ""; 
+
+        if (tipe === "barang") {
+          id_edit = document.getElementById("edit-id-barang").value;
+          payload = {
+            kode_sku: document.getElementById("m-kode-sku").value,
+            nama_produk: document.getElementById("m-nama-produk").value,
+            kategori: document.getElementById("m-kategori").value,
+            tipe_kemasan: document.getElementById("m-kemasan").value,
+            umur_simpan: document.getElementById("m-umur").value,
+          };
+        } else if (tipe === "lokasi") {
+          id_edit = document.getElementById("edit-id-lokasi").value;
+          payload = {
+            kode_lokasi: document.getElementById("m-kode-lokasi").value,
+            nama_area: document.getElementById("m-nama-area").value,
+            tipe_zona: document.getElementById("m-tipe-zona").value,
+            
+            // Ganti "kapasitas" menjadi dua baris ini:
+            jumlah_baris: parseInt(document.getElementById("m-baris").value),
+            slot_per_baris: parseInt(document.getElementById("m-slot").value),
+          };
+        } else if (tipe === "suratjalan") {
+          id_edit = document.getElementById("edit-id-sj").value;
+          payload = {
+            no_sj: document.getElementById("m-no-sj").value,
+            tujuan: document.getElementById("m-tujuan").value,
+            truk: document.getElementById("m-truk").value,
+            target_palet: document.getElementById("m-target-palet").value,
+          };
+        } else if (tipe === "akun") {
+          id_edit = document.getElementById("edit-id-akun").value;
+          payload = {
+            username: document.getElementById("m-username").value,
+            password: document.getElementById("m-password").value,
+            role: document.getElementById("m-role").value,
+          };
+        }
+
+        let endpoint = id_edit ? `/edit-master/${tipe}/${id_edit}/` : `/tambah-master/${tipe}/`;
+
+        fetch(endpoint, {
+          method: "POST",
+          headers: { "Content-Type": "application/json", "X-CSRFToken": csrftoken },
+          body: JSON.stringify(payload),
+        })
+          .then((res) => res.json())
+          .then((data) => {
+            if (data.status === "success") {
+              location.reload();
+            } else {
+              alert("Gagal: " + data.message);
+            }
+          })
+          .catch(() => alert("Terjadi kesalahan jaringan."));
+      }
+
+      // FUNGSI KHUSUS UBAH STATUS SURAT JALAN
+      function ubahStatusSJ(id, statusBaru) {
+        if (confirm(`Apakah Anda yakin ingin mengubah status Surat Jalan ini menjadi ${statusBaru}?`)) {
+          fetch(`/edit-master/suratjalan/${id}/`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json", "X-CSRFToken": csrftoken },
+            body: JSON.stringify({ status: statusBaru }),
+          })
+            .then((res) => res.json())
+            .then((data) => {
+              if (data.status === "success") location.reload();
+              else alert("Gagal mengubah status: " + data.message);
+            })
+            .catch(() => alert("Terjadi kesalahan jaringan."));
+        }
+      }
+
+      // 4. FUNGSI HAPUS DATA
+      function hapusData(tipe, id) {
+        if (confirm(`PERINGATAN!\nApakah Anda yakin ingin menghapus data ${tipe} ini?\nData yang terhapus tidak dapat dikembalikan.`)) {
+          fetch(`/hapus-master/${tipe}/${id}/`, {
+            method: "POST",
+            headers: { "X-CSRFToken": csrftoken },
+          })
+            .then((res) => res.json())
+            .then((data) => {
+              if (data.status === "success") location.reload();
+              else alert("Gagal menghapus: " + data.message);
+            })
+            .catch(() => alert("Terjadi kesalahan jaringan."));
+        }
+      }
+
+      // 5. FUNGSI GENERATE BATCH QR
+      function generateBatchQR() {
+        const payload = {
+          batch_sap: document.getElementById("input-batch-sap").value,
+          kode_barang: document.getElementById("pilih-barang").value,
+          jumlah_palet: document.getElementById("input-jml-palet").value,
+          qty_per_palet: document.getElementById("input-qty-palet").value,
+          lokasi_id: document.getElementById("pilih-lokasi").value,
+        };
+
+        if (!payload.batch_sap || !payload.kode_barang || !payload.jumlah_palet || !payload.lokasi_id) {
+          alert("Mohon lengkapi form Generate QR!");
+          return;
+        }
+
+        const btn = document.getElementById("btn-submit-batch");
+        btn.disabled = true;
+        btn.innerHTML = '<span class="spinner-border spinner-border-sm"></span> Memproses...';
+
+        fetch("/api/generate-batch-qr/", {
+          method: "POST",
+          headers: { "Content-Type": "application/json", "X-CSRFToken": csrftoken },
+          body: JSON.stringify(payload),
+        })
+          .then((res) => res.json())
+          .then((data) => {
+            if (data.status === "success") {
+              document.getElementById("main-interface").style.display = "none";
+              document.getElementById("print-area").style.display = "block";
+
+              let printHtml = "";
+              data.qrs.forEach((item) => {
+                printHtml += `
+            <div class="qr-card">
+              <h6 class="fw-bold mb-0">PT PDSU</h6>
+              <small class="text-muted d-block border-bottom pb-1 mb-2" style="font-size:0.7rem">PALLET ID TAG</small>
+              <img src="${item.url}" class="img-fluid mb-2" style="max-width: 150px" onerror="this.onerror=null; setTimeout(() => { this.src='${item.url}?t=' + new Date().getTime(); }, 1000);">
+              <div class="text-start bg-light p-2 rounded small">
+                <strong>${item.nama_barang}</strong><br>
+                <span class="text-muted">Batch:</span> ${item.batch_sap}<br>
+                <span class="text-muted">ID:</span> <b>${item.id_lot}</b><br>
+                <span class="text-muted">Qty:</span> ${item.qty}
+              </div>
+            </div>`;
+              });
+              document.getElementById("qr-container").innerHTML = printHtml;
+            } else {
+              alert("Gagal: " + data.message);
+              btn.disabled = false;
+              btn.innerHTML = "Generate & Cetak Stiker Palet";
+            }
+          })
+          .catch(() => {
+            alert("Terjadi kesalahan saat meng-generate QR.");
+            btn.disabled = false;
+            btn.innerHTML = "Generate & Cetak Stiker Palet";
+          });
+      }
+    </script>
+  </body>
+</html>
