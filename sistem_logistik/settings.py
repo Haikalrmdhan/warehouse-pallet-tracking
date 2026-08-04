@@ -20,8 +20,8 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # See https://docs.djangoproject.com/en/5.2/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-from decouple import config
-SECRET_KEY = config('SECRET_KEY')
+# For production, move this to environment variable
+SECRET_KEY = 'django-insecure-i8^(oxotkvkqbi#ety6&^9jsar4)@++tkm1!*zdmezz)58zml4'
 
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
@@ -77,11 +77,11 @@ WSGI_APPLICATION = 'sistem_logistik.wsgi.application'
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.postgresql',
-        'NAME': config('DB_NAME'),
-        'USER': config('DB_USER'),
-        'PASSWORD': config('DB_PASSWORD'),
-        'HOST': config('DB_HOST', default='localhost'),
-        'PORT': config('DB_PORT', default='5432'),
+        'NAME': 'db_logistik',           # Sesuaikan dengan nama database
+        'USER': 'postgres',              # Sesuaikan dengan user PostgreSQL
+        'PASSWORD': 'admin',             # Sesuaikan dengan password PostgreSQL
+        'HOST': 'localhost',
+        'PORT': '5432',
     }
 }
 
