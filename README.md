@@ -1,7 +1,7 @@
 # 🏭 Warehouse Pallet Tracking System
 
 Aplikasi pelacakan palet gudang berbasis web menggunakan teknologi 
-QR Code yang dibangun untuk PT Permata Dunia Sukses Utama (PDSU).
+QR Code.
 
 ## 📋 Deskripsi
 
