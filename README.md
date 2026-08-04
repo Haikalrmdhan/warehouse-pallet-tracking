@@ -27,3 +27,25 @@ perpindahan palet secara digital melalui pemindaian QR Code.
 ## 🛠️ Cara Menjalankan
 
 1. Clone repository
+2. Masuk ke folder project
+3. Buat virtual environment dan aktifkan
+4. Install dependencies
+5. Buat file `.env` berdasarkan `.env.example` dan isi dengan 
+   konfigurasi database PostgreSQL
+6. Jalankan migrasi
+7. Jalankan server
+8. Buka browser dan akses `http://127.0.0.1:8000`
+
+## 👥 Role Pengguna
+
+| Role | Akses |
+|------|-------|
+| Admin Gudang | Generate QR Code, kelola Surat Jalan, Lokasi, Barang, Akun |
+| Operator Lapangan | Scan pindah lokasi, muat ke truk, batal muat |
+| Kepala Gudang | Dashboard laporan, filter pelacakan, cetak PDF |
+
+## 📚 Penelitian
+
+Dibangun sebagai bagian dari skripsi:
+**"Rancang Bangun Aplikasi Pelacakan Palet Gudang Berbasis Web 
+Menggunakan Teknologi QR Code"**
