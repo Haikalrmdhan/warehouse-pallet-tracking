@@ -24,10 +24,12 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 SECRET_KEY = 'django-insecure-i8^(oxotkvkqbi#ety6&^9jsar4)@++tkm1!*zdmezz)58zml4'
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+DEBUG = False
 
-ALLOWED_HOSTS = ['axis-pasture-canopy.ngrok-free.dev', 'localhost', '127.0.0.1']  # Untuk pengembangan, izinkan semua host. Sesuaikan untuk produksi.
-
+# ALLOWED_HOSTS = ['axis-pasture-canopy.ngrok-free.dev', 'localhost', '127.0.0.1']  # Untuk pengembangan, izinkan semua host. Sesuaikan untuk produksi.
+# ALLOWED_HOSTS = ['web-production-a7b8a3.up.railway.app']
+import os
+ALLOWED_HOSTS = os.environ.get('ALLOWED_HOSTS', '').split(',')
 
 # Application definition
 
