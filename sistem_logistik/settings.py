@@ -147,4 +147,5 @@ LOGOUT_REDIRECT_URL = '/login/'
 
 # Karena kamu menggunakan POST request untuk form/scanner, tambahkan ini agar tidak error CSRF (harus pakai https://)
 # CSRF_TRUSTED_ORIGINS = ['https://axis-pasture-canopy.ngrok-free.dev']
-CSRF_TRUSTED_ORIGINS = os.environ.get('CSRF_TRUSTED_ORIGINS', '').split(',')
+# CSRF_TRUSTED_ORIGINS = os.environ.get('CSRF_TRUSTED_ORIGINS', '').split(',')
+CSRF_TRUSTED_ORIGINS = [origin for origin in os.environ.get('CSRF_TRUSTED_ORIGINS', '').split(',') if origin]
