@@ -146,4 +146,5 @@ LOGIN_REDIRECT_URL = '/admin/'  # Jika role default lari ke admin
 LOGOUT_REDIRECT_URL = '/login/'
 
 # Karena kamu menggunakan POST request untuk form/scanner, tambahkan ini agar tidak error CSRF (harus pakai https://)
-CSRF_TRUSTED_ORIGINS = ['https://axis-pasture-canopy.ngrok-free.dev']
+# CSRF_TRUSTED_ORIGINS = ['https://axis-pasture-canopy.ngrok-free.dev']
+CSRF_TRUSTED_ORIGINS = os.environ.get('CSRF_TRUSTED_ORIGINS', '').split(',')
